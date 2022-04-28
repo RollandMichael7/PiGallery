@@ -1,0 +1,5 @@
+dropbox==11.30.0
+fillpdf==0.7.1
+pdf2image==1.16.0
+Pillow==9.1.0
+screeninfo==0.8
