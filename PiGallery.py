@@ -17,6 +17,9 @@ from PIL import Image, ImageTk, ExifTags
 DROPBOX_APP_KEY = os.environ['PIGALLERY_APP_KEY']
 DROPBOX_REFRESH_TOKEN = os.environ['PIGALLERY_REFRESH_TOKEN']
 
+LABEL_MONITOR_INDEX = 0
+PHOTO_MONITOR_INDEX = 1
+
 REFRESH_RATE_MS = 500
 IMAGE_SWAP_RATE_MS = (10 * 1000)
 
@@ -248,8 +251,8 @@ def fade_images(fade_direction):
     for i in range(from_opacity, to_opacity, step):
         pil_img_photo.putalpha(i)
         pil_img_label.putalpha(i)
-        canvas_img_photo = update_canvas_image(canvas_photo, pil_img_photo, 0)
-        canvas_img_label = update_canvas_image(canvas_label, pil_img_label, 1)
+        canvas_img_photo = update_canvas_image(canvas_photo, pil_img_photo, PHOTO_MONITOR_INDEX)
+        canvas_img_label = update_canvas_image(canvas_label, pil_img_label, LABEL_MONITOR_INDEX)
         canvas_photo.update()
         canvas_label.update()
         # Sleep some time to make the transition not immediate
@@ -279,8 +282,8 @@ if __name__ == '__main__':
     win2 = tkinter.Toplevel(root)
 
     # open the images
-    canvas_photo, canvas_img_photo = open_image_fullscreen(win1, pil_img_photo, 0)
-    canvas_label, canvas_img_label = open_image_fullscreen(win2, pil_img_label, 1)
+    canvas_photo, canvas_img_photo = open_image_fullscreen(win1, pil_img_photo, PHOTO_MONITOR_INDEX)
+    canvas_label, canvas_img_label = open_image_fullscreen(win2, pil_img_label, LABEL_MONITOR_INDEX)
 
     # periodically refresh the images
     while True:
