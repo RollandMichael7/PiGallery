@@ -186,11 +186,11 @@ def get_pdf_fields(image, subject_json, image_json):
 
 def get_filled_pdf_as_image(image, subject_json, image_json):
     dbx = dropbox_connect()
-    dbx.files_download_to_file(path='/templates/metal-template.pdf', download_path='temp/label.pdf')
+    dbx.files_download_to_file(path='/templates/metal-template.pdf', download_path='temp/template.pdf')
 
     filled_fields = get_pdf_fields(image, subject_json, image_json)
     fillpdfs.write_fillable_pdf('temp/template.pdf', 'temp/label.pdf', filled_fields)
-    pdf_as_img = convert_from_path('temp/label.pdf', poppler_path='poppler-22.01.0/Library/bin', use_cropbox=True)
+    pdf_as_img = convert_from_path('temp/label.pdf', use_cropbox=True)
     pdf_as_img[0].save('temp/label.jpg', 'JPEG')
     return Image.open('temp/label.jpg')
 
