@@ -278,7 +278,7 @@ if __name__ == '__main__':
     print(f'image: {image_json["photo"]}\n')
 
     # download the photo
-    pil_img_photo = dropbox_get_file(image_json['filename'], 'temp/test.jpg')
+    pil_img_photo = dropbox_get_file(image_json['photo'], 'temp/test.jpg')
     # fill label template PDF with info from the subject's JSON, and download it as an image
     pil_img_label = get_filled_pdf_as_image(pil_img_photo, subject_json, image_json)
 
