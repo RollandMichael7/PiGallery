@@ -20,7 +20,7 @@ DROPBOX_REFRESH_TOKEN = os.environ['PIGALLERY_REFRESH_TOKEN']
 # length of the arrays used to check for repeats
 # eg. if PHOTO_BUFFER_LENGTH = 10, then the last 10 randomly selected images will not be selected again
 SUBJECT_BUFFER_LENGTH = 0
-PHOTO_BUFFER_LENGTH = 10
+PHOTO_BUFFER_LENGTH = 30
 
 FADE_IMAGES = False
 
