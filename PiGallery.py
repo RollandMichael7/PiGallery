@@ -256,6 +256,7 @@ def swap_images():
             # emulated do-while loop to choose random photo for the subject that isn't one of the last N we've already used
             while True:
                 image_json = random.choice(subject_json["images"])
+                print(f'image: {image_json["photo"]}\n')
                 if PHOTO_BUFFER_LENGTH > 0:
                     if image_json["photo"] not in photo_buffer:
                         # add this file to the list of the last N we've used
@@ -263,11 +264,12 @@ def swap_images():
                             photo_buffer.pop(PHOTO_BUFFER_LENGTH - 1)
                         photo_buffer.insert(0, image_json["photo"])
                         break
+                    else:
+                        print("Repeat skipped")
                 else:
                     break
 
             print(f'subject: {subject_json["name"]}')
-            print(f'image: {image_json["photo"]}\n')
 
             # download the photo
             pil_img_photo = dropbox_get_file(image_json["photo"], 'temp/test.jpg')
