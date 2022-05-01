@@ -17,6 +17,8 @@ from PIL import Image, ImageTk, ExifTags
 DROPBOX_APP_KEY = os.environ['PIGALLERY_APP_KEY']
 DROPBOX_REFRESH_TOKEN = os.environ['PIGALLERY_REFRESH_TOKEN']
 
+FADE_IMAGES = False
+
 LABEL_MONITOR_INDEX = 0
 PHOTO_MONITOR_INDEX = 1
 
@@ -212,7 +214,9 @@ def swap_images():
         swap_counter += REFRESH_RATE_MS + 500
         if swap_counter >= IMAGE_SWAP_RATE_MS:
             swap_pause = True
-            fade_images(FadeDirection.OUT)
+
+            if FADE_IMAGES:
+                fade_images(FadeDirection.OUT)
 
             global canvas_photo, canvas_label, canvas_img_photo, canvas_img_label, pil_img_photo, pil_img_label
 
@@ -228,8 +232,12 @@ def swap_images():
             pil_img_photo = dropbox_get_file(image_json['filename'], 'temp/test.jpg')
             # fill label template PDF with info from the subject's JSON, and download it as an image
             pil_img_label = get_filled_pdf_as_image(pil_img_photo, subject_json, image_json)
-            # fade new images in
-            fade_images(FadeDirection.IN)
+            # swap to new images
+            if FADE_IMAGES:
+                fade_images(FadeDirection.IN)
+            else:
+                canvas_img_photo = update_canvas_image(canvas_photo, pil_img_photo, PHOTO_MONITOR_INDEX)
+                canvas_img_label = update_canvas_image(canvas_label, pil_img_label, LABEL_MONITOR_INDEX)
 
             swap_counter = 0
             swap_pause = False
