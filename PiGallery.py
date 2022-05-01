@@ -164,7 +164,7 @@ def get_pdf_fields(image, subject_json, image_json):
     date_taken_str = date_taken_obj.strftime('%-I:%M %p %B %#d, %Y')
 
     camera_body = exif['Model']
-    focal_length = exif['FocalLength']
+    focal_length = int(exif['FocalLength'])
     aperture = exif['FNumber']
     shutter = 1 / exif['ExposureTime']
     iso = exif['ISOSpeedRatings']
