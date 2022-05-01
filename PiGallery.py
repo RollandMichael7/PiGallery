@@ -203,7 +203,7 @@ def get_filled_pdf_as_image(image, subject_json, image_json):
 def force_refresh():
     print('force refresh')
     global swap_counter
-    swap_counter = 10 * 1000 + 1
+    swap_counter = IMAGE_SWAP_RATE_MS
     swap_images()
 
 
