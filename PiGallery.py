@@ -169,12 +169,6 @@ def get_pdf_fields(image, subject_json, image_json):
     shutter = 1 / exif['ExposureTime']
     iso = exif['ISOSpeedRatings']
 
-    notes = f'{camera_body} \n' \
-            f'1/{shutter}s \n' \
-            f'f/{aperture} \n' \
-            f'{iso} ISO \n' \
-            f'{focal_length}mm'
-
     name = subject_json['name']
     if len(image_json['name_detail']) > 0:
         name = f'{name} ({image_json["name_detail"]})'
@@ -184,14 +178,17 @@ def get_pdf_fields(image, subject_json, image_json):
         "Subtitle": subject_json['species'],
         "Date": date_taken_str,
         "Location": image_json['location'],
-        "Notes": notes
+        "Body": f'{camera_body}, {focal_length}mm',
+        "Shutter": f'1/{shutter}s',
+        "Aperture": f'f/{aperture}',
+        "ISO": f'{iso} ISO'
     }
     return filled_fields
 
 
 def get_filled_pdf_as_image(image, subject_json, image_json):
     dbx = dropbox_connect()
-    dbx.files_download_to_file(path='/templates/template.pdf', download_path='temp/template.pdf')
+    dbx.files_download_to_file(path=image_json['label_template'], download_path='temp/template.pdf')
 
     filled_fields = get_pdf_fields(image, subject_json, image_json)
     fillpdfs.write_fillable_pdf('temp/template.pdf', 'temp/label.pdf', filled_fields)
@@ -226,10 +223,10 @@ def swap_images():
             image_json = random.choice(subject_json['images'])
 
             print(f'subject: {subject_json["name"]}')
-            print(f'image: {image_json["filename"]}\n')
+            print(f'image: {image_json["photo"]}\n')
 
             # download the photo
-            pil_img_photo = dropbox_get_file(image_json['filename'], 'temp/test.jpg')
+            pil_img_photo = dropbox_get_file(image_json['photo'], 'temp/test.jpg')
             # fill label template PDF with info from the subject's JSON, and download it as an image
             pil_img_label = get_filled_pdf_as_image(pil_img_photo, subject_json, image_json)
             # swap to new images
@@ -278,7 +275,7 @@ if __name__ == '__main__':
     image_json = random.choice(subject_json['images'])
 
     print(f'subject: {subject_json["name"]}')
-    print(f'image: {image_json["filename"]}\n')
+    print(f'image: {image_json["photo"]}\n')
 
     # download the photo
     pil_img_photo = dropbox_get_file(image_json['filename'], 'temp/test.jpg')
