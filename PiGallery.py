@@ -17,6 +17,11 @@ from PIL import Image, ImageTk, ExifTags
 DROPBOX_APP_KEY = os.environ['PIGALLERY_APP_KEY']
 DROPBOX_REFRESH_TOKEN = os.environ['PIGALLERY_REFRESH_TOKEN']
 
+# length of the arrays used to check for repeats
+# eg. if PHOTO_BUFFER_LENGTH = 10, then the last 10 randomly selected images will not be selected again
+SUBJECT_BUFFER_LENGTH = 0
+PHOTO_BUFFER_LENGTH = 10
+
 FADE_IMAGES = False
 
 LABEL_MONITOR_INDEX = 0
@@ -39,6 +44,9 @@ canvas_img_photo = None
 canvas_img_label = None
 pil_img_photo = None
 pil_img_label = None
+
+subject_buffer = []
+photo_buffer = []
 
 
 class FadeDirection(Enum):
@@ -127,23 +135,53 @@ def dropbox_get_file(dropbox_path, local_path):
 def dropbox_get_random_json():
     dbx = dropbox_connect()
 
-    num_files = dropbox_get_num_jsons()
-    file_index = random.randint(1, num_files)
-    print(f'index: {file_index}')
-    index = 1
-    file = None
-    for i in dbx.files_list_folder("/jsons").entries:
-        if index == file_index:
-            file = i
+    # emulated do-while loop to keep trying to select an image until we get one that isnt a repeat of the last N, defined by SUBJECT_BUFFER_LENGTH and PHOTO_BUFFER_LENGTH
+    global photo_buffer, subject_buffer
+    while True:
+        num_files = dropbox_get_num_jsons()
+        file_index = random.randint(1, num_files)
+        print(f'index: {file_index}')
+        index = 1
+        file = None
+        for i in dbx.files_list_folder("/jsons").entries:
+            if index == file_index:
+                file = i
+                break
+            index += 1
+
+        print(f'file: {file.name}')
+
+        file_path = f'/jsons/{file.name}'
+        dbx.files_download_to_file(path=file_path, download_path='temp/subject.json')
+        json_obj = json.load(open('temp/subject.json'))
+
+        if SUBJECT_BUFFER_LENGTH > 0:
+            # only select this file if it's not one of the last N we've used
+            if file.name not in subject_buffer:
+                if PHOTO_BUFFER_LENGTH > 0:
+                    # only select this file if it also contains at least one image that's not one of the last N we've used
+                    has_valid_image = False
+                    for img in json_obj["images"]:
+                        if img["photo"] not in photo_buffer:
+                            has_valid_image = True
+                            break
+
+                    if has_valid_image:
+                        # add this file to the list of the last N we've used
+                        if len(subject_buffer) == SUBJECT_BUFFER_LENGTH:
+                            subject_buffer.pop(SUBJECT_BUFFER_LENGTH - 1)
+                        subject_buffer.insert(0, file.name)
+
+                        return json_obj
+                    else:
+                        print('No non-repeat images found\n')
+                else:
+                    return json_obj
+            else:
+                print('Repeat skipped\n')
+        else:
             break
-        index += 1
 
-    print(f'file: {file.name}')
-
-    #file = random.choice(dbx.files_list_folder("/jsons").entries)
-    file_path = f'/jsons/{file.name}'
-    dbx.files_download_to_file(path=file_path, download_path='temp/subject.json')
-    json_obj = json.load(open('temp/subject.json'))
     return json_obj
 
 
@@ -213,18 +251,28 @@ def swap_images():
             if FADE_IMAGES:
                 fade_images(FadeDirection.OUT)
 
-            global canvas_photo, canvas_label, canvas_img_photo, canvas_img_label, pil_img_photo, pil_img_label
+            global photo_buffer, canvas_photo, canvas_label, canvas_img_photo, canvas_img_label, pil_img_photo, pil_img_label
 
             # get random subject JSON
             subject_json = dropbox_get_random_json()
-            # choose random photo for the subject
-            image_json = random.choice(subject_json['images'])
+            # emulated do-while loop to choose random photo for the subject that isn't one of the last N we've already used
+            while True:
+                image_json = random.choice(subject_json["images"])
+                if PHOTO_BUFFER_LENGTH > 0:
+                    if image_json["photo"] not in photo_buffer:
+                        # add this file to the list of the last N we've used
+                        if len(photo_buffer) == PHOTO_BUFFER_LENGTH:
+                            photo_buffer.pop(PHOTO_BUFFER_LENGTH - 1)
+                        photo_buffer.insert(0, image_json["photo"])
+                        break
+                else:
+                    break
 
             print(f'subject: {subject_json["name"]}')
             print(f'image: {image_json["photo"]}\n')
 
             # download the photo
-            pil_img_photo = dropbox_get_file(image_json['photo'], 'temp/test.jpg')
+            pil_img_photo = dropbox_get_file(image_json["photo"], 'temp/test.jpg')
             # fill label template PDF with info from the subject's JSON, and download it as an image
             pil_img_label = get_filled_pdf_as_image(pil_img_photo, subject_json, image_json)
             # swap to new images
@@ -270,7 +318,11 @@ if __name__ == '__main__':
     # get random subject JSON
     subject_json = dropbox_get_random_json()
     # choose random photo for the subject
-    image_json = random.choice(subject_json['images'])
+    image_json = random.choice(subject_json["images"])
+
+    # store image name in buffer so it isnt repeated
+    if PHOTO_BUFFER_LENGTH > 0:
+        photo_buffer.insert(0, image_json["photo"])
 
     print(f'subject: {subject_json["name"]}')
     print(f'image: {image_json["photo"]}\n')
