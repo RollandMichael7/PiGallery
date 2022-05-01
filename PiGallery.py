@@ -155,32 +155,30 @@ def dropbox_get_random_json():
         dbx.files_download_to_file(path=file_path, download_path='temp/subject.json')
         json_obj = json.load(open('temp/subject.json'))
 
+        # if using subject buffer, only select this file if it's not one of the last N we've used
+        if SUBJECT_BUFFER_LENGTH > 0 and file.name in subject_buffer:
+            print('Repeat skipped\n')
+            continue
+
+        # if using photo buffer, only select this file if it contains at least one image that's not one of the last N we've used
+        if PHOTO_BUFFER_LENGTH > 0:
+            has_valid_image = False
+            for img in json_obj["images"]:
+                if img["photo"] not in photo_buffer:
+                    has_valid_image = True
+                    break
+
+            if not has_valid_image:
+                print('No non-repeat images found\n')
+                continue
+
         if SUBJECT_BUFFER_LENGTH > 0:
-            # only select this file if it's not one of the last N we've used
-            if file.name not in subject_buffer:
-                if PHOTO_BUFFER_LENGTH > 0:
-                    # only select this file if it also contains at least one image that's not one of the last N we've used
-                    has_valid_image = False
-                    for img in json_obj["images"]:
-                        if img["photo"] not in photo_buffer:
-                            has_valid_image = True
-                            break
+            # add this file to the list of the last N we've used
+            if len(subject_buffer) == SUBJECT_BUFFER_LENGTH:
+                subject_buffer.pop(SUBJECT_BUFFER_LENGTH - 1)
+            subject_buffer.insert(0, file.name)
 
-                    if has_valid_image:
-                        # add this file to the list of the last N we've used
-                        if len(subject_buffer) == SUBJECT_BUFFER_LENGTH:
-                            subject_buffer.pop(SUBJECT_BUFFER_LENGTH - 1)
-                        subject_buffer.insert(0, file.name)
-
-                        return json_obj
-                    else:
-                        print('No non-repeat images found\n')
-                else:
-                    return json_obj
-            else:
-                print('Repeat skipped\n')
-        else:
-            break
+        break
 
     return json_obj
 
