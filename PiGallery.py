@@ -178,10 +178,8 @@ def get_pdf_fields(image, subject_json, image_json):
         "Subtitle": subject_json['species'],
         "Date": date_taken_str,
         "Location": image_json['location'],
-        "Body": f'{camera_body}, {focal_length}mm',
-        "Shutter": f'1/{shutter}s',
-        "Aperture": f'f/{aperture}',
-        "ISO": f'{iso} ISO'
+        "Body": f'{camera_body} @ {focal_length}mm',
+        "Exposure": f'1/{shutter}s @ f/{aperture}, {iso} ISO',
     }
     return filled_fields
 
