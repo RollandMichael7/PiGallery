@@ -191,7 +191,7 @@ def get_pdf_fields(image, subject_json, image_json):
 
 def get_filled_pdf_as_image(image, subject_json, image_json):
     dbx = dropbox_connect()
-    dbx.files_download_to_file(path='/templates/metal-template.pdf', download_path='temp/template.pdf')
+    dbx.files_download_to_file(path='/templates/template.pdf', download_path='temp/template.pdf')
 
     filled_fields = get_pdf_fields(image, subject_json, image_json)
     fillpdfs.write_fillable_pdf('temp/template.pdf', 'temp/label.pdf', filled_fields)
