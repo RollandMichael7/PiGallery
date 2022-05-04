@@ -202,9 +202,13 @@ def get_pdf_fields(image, subject_json, image_json):
 
     date_taken_obj = datetime.strptime(exif['DateTimeOriginal'], '%Y:%m:%d %H:%M:%S')
 
-    # portable way to get 12 hour time without leading zero, since strftime isnt portable...
+    # portable way to get datetime without leading zeroes, since strftime isnt portable...
     hour = int(date_taken_obj.strftime('%I'))
-    date_taken_str = date_taken_obj.strftime('%M %p %B %#d, %Y')
+    minute = date_taken_obj.strftime('%M')
+    period = date_taken_obj.strftime('%p')
+    month = date_taken_obj.strftime('%B')
+    day = int(date_taken_obj.strftime('%d'))
+    year = date_taken_obj.strftime('%Y')
 
     camera_body = exif['Model']
     focal_length = int(exif['FocalLength'])
@@ -219,7 +223,7 @@ def get_pdf_fields(image, subject_json, image_json):
     filled_fields = {
         "Title": name,
         "Subtitle": subject_json['species'],
-        "Date": f'{hour}:{date_taken_str}',
+        "Date": f'{hour}:{minute} {period} {month} {day}, {year}',
         "Location": image_json['location'],
         "Body": f'{camera_body} at {focal_length}mm',
         "Exposure": f'1/{shutter}s at f/{aperture}, {iso} ISO',
