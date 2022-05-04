@@ -4,6 +4,7 @@ import tkinter
 import random
 import json
 import time
+import argparse, sys
 
 from enum import Enum
 from datetime import datetime, timedelta
@@ -24,14 +25,17 @@ PHOTO_BUFFER_LENGTH = 30
 
 FADE_IMAGES = False
 
-LABEL_MONITOR_INDEX = 0
+PLAQUE_MONITOR_INDEX = 0
 PHOTO_MONITOR_INDEX = 1
 
 REFRESH_RATE_MS = 500
 IMAGE_SWAP_RATE_MS = (10 * 1000)
 
+# poppler path for using PyMuPDF on Windows
+POPPLER_PATH = None
+
 root = tkinter.Tk()
-root.bind("<Escape>", lambda e: root.destroy())  # (e.widget.withdraw(), e.widget.quit()))
+root.bind("<Escape>", lambda e: root.destroy())
 root.bind("<Right>", lambda e: force_refresh())
 root.withdraw()
 
@@ -39,11 +43,11 @@ swap_counter = 0
 swap_pause = False
 
 canvas_photo = None
-canvas_label = None
+canvas_plaque = None
 canvas_img_photo = None
-canvas_img_label = None
+canvas_img_plaque = None
 pil_img_photo = None
-pil_img_label = None
+pil_img_plaque = None
 
 subject_buffer = []
 photo_buffer = []
@@ -197,7 +201,10 @@ def get_pdf_fields(image, subject_json, image_json):
     # print(exif)
 
     date_taken_obj = datetime.strptime(exif['DateTimeOriginal'], '%Y:%m:%d %H:%M:%S')
-    date_taken_str = date_taken_obj.strftime('%-I:%M %p %B %#d, %Y')
+
+    # portable way to get 12 hour time without leading zero, since strftime isnt portable...
+    hour = int(date_taken_obj.strftime('%I'))
+    date_taken_str = date_taken_obj.strftime('%M %p %B %#d, %Y')
 
     camera_body = exif['Model']
     focal_length = int(exif['FocalLength'])
@@ -212,7 +219,7 @@ def get_pdf_fields(image, subject_json, image_json):
     filled_fields = {
         "Title": name,
         "Subtitle": subject_json['species'],
-        "Date": date_taken_str,
+        "Date": f'{hour}:{date_taken_str}',
         "Location": image_json['location'],
         "Body": f'{camera_body} at {focal_length}mm',
         "Exposure": f'1/{shutter}s at f/{aperture}, {iso} ISO',
@@ -221,14 +228,20 @@ def get_pdf_fields(image, subject_json, image_json):
 
 
 def get_filled_pdf_as_image(image, subject_json, image_json):
+    global POPPLER_PATH
     dbx = dropbox_connect()
-    dbx.files_download_to_file(path=image_json['label_template'], download_path='temp/template.pdf')
+    dbx.files_download_to_file(path=image_json['plaque_template'], download_path='temp/template.pdf')
 
     filled_fields = get_pdf_fields(image, subject_json, image_json)
-    fillpdfs.write_fillable_pdf('temp/template.pdf', 'temp/label.pdf', filled_fields)
-    pdf_as_img = convert_from_path('temp/label.pdf', use_cropbox=True)
-    pdf_as_img[0].save('temp/label.jpg', 'JPEG')
-    return Image.open('temp/label.jpg')
+    fillpdfs.write_fillable_pdf('temp/template.pdf', 'temp/plaque.pdf', filled_fields)
+
+    if POPPLER_PATH is not None:
+        pdf_as_img = convert_from_path('temp/plaque.pdf', use_cropbox=True, poppler_path=POPPLER_PATH)
+    else:
+        pdf_as_img = convert_from_path('temp/plaque.pdf', use_cropbox=True)
+    
+    pdf_as_img[0].save('temp/plaque.jpg', 'JPEG')
+    return Image.open('temp/plaque.jpg')
 
 
 def force_refresh():
@@ -249,7 +262,7 @@ def swap_images():
             if FADE_IMAGES:
                 fade_images(FadeDirection.OUT)
 
-            global photo_buffer, canvas_photo, canvas_label, canvas_img_photo, canvas_img_label, pil_img_photo, pil_img_label
+            global photo_buffer, canvas_photo, canvas_plaque, canvas_img_photo, canvas_img_plaque, pil_img_photo, pil_img_plaque
 
             # get random subject JSON
             subject_json = dropbox_get_random_json()
@@ -273,21 +286,21 @@ def swap_images():
 
             # download the photo
             pil_img_photo = dropbox_get_file(image_json["photo"], 'temp/test.jpg')
-            # fill label template PDF with info from the subject's JSON, and download it as an image
-            pil_img_label = get_filled_pdf_as_image(pil_img_photo, subject_json, image_json)
+            # fill plaque template PDF with info from the subject's JSON, and download it as an image
+            pil_img_plaque = get_filled_pdf_as_image(pil_img_photo, subject_json, image_json)
             # swap to new images
             if FADE_IMAGES:
                 fade_images(FadeDirection.IN)
             else:
                 canvas_img_photo = update_canvas_image(canvas_photo, pil_img_photo, PHOTO_MONITOR_INDEX)
-                canvas_img_label = update_canvas_image(canvas_label, pil_img_label, LABEL_MONITOR_INDEX)
+                canvas_img_plaque = update_canvas_image(canvas_plaque, pil_img_plaque, PLAQUE_MONITOR_INDEX)
 
             swap_counter = 0
             swap_pause = False
 
 
 def fade_images(fade_direction):
-    global canvas_photo, canvas_label, canvas_img_photo, canvas_img_label, pil_img_photo, pil_img_label
+    global canvas_photo, canvas_plaque, canvas_img_photo, canvas_img_plaque, pil_img_photo, pil_img_plaque
 
     from_opacity = to_opacity = step = 0
     if fade_direction == FadeDirection.OUT:
@@ -301,16 +314,53 @@ def fade_images(fade_direction):
 
     for i in range(from_opacity, to_opacity, step):
         pil_img_photo.putalpha(i)
-        pil_img_label.putalpha(i)
+        pil_img_plaque.putalpha(i)
         canvas_img_photo = update_canvas_image(canvas_photo, pil_img_photo, PHOTO_MONITOR_INDEX)
-        canvas_img_label = update_canvas_image(canvas_label, pil_img_label, LABEL_MONITOR_INDEX)
+        canvas_img_plaque = update_canvas_image(canvas_plaque, pil_img_plaque, PLAQUE_MONITOR_INDEX)
         canvas_photo.update()
-        canvas_label.update()
+        canvas_plaque.update()
         # Sleep some time to make the transition not immediate
         time.sleep(0.01)
 
 
+def read_args(args):
+    global SUBJECT_BUFFER_LENGTH, PHOTO_BUFFER_LENGTH, IMAGE_SWAP_RATE_MS, PHOTO_MONITOR_INDEX, PLAQUE_MONITOR_INDEX, POPPLER_PATH, FADE_IMAGES
+
+    if args.SUBJECT_BUFFER_LENGTH is not None:
+        SUBJECT_BUFFER_LENGTH = int(args.SUBJECT_BUFFER_LENGTH)
+
+    if args.PHOTO_BUFFER_LENGTH is not None:
+        PHOTO_BUFFER_LENGTH = int(args.PHOTO_BUFFER_LENGTH)
+
+    if args.IMAGE_SWAP_RATE_MS is not None:
+        IMAGE_SWAP_RATE_MS = int(args.IMAGE_SWAP_RATE_MS)
+
+    if args.PHOTO_MONITOR_INDEX is not None:
+        PHOTO_MONITOR_INDEX = int(args.PHOTO_MONITOR_INDEX)
+
+    if args.PLAQUE_MONITOR_INDEX is not None:
+        PLAQUE_MONITOR_INDEX = int(args.PLAQUE_MONITOR_INDEX)
+
+    if args.POPPLER_PATH is not None:
+        POPPLER_PATH = args.POPPLER_PATH
+
+    if args.FADE_IMAGES is not None:
+        FADE_IMAGES = bool(args.FADE_IMAGES)
+
+
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--SUBJECT_BUFFER_LENGTH", help='Number of last photo subjects to not repeat')
+    parser.add_argument("--PHOTO_BUFFER_LENGTH", help='Number of last photos to not repeat')
+    parser.add_argument("--IMAGE_SWAP_RATE_MS", help='Frequency of image swaps, in ms')
+    parser.add_argument("--PHOTO_MONITOR_INDEX", help='Index of the monitor for displaying the photo')
+    parser.add_argument("--PLAQUE_MONITOR_INDEX", help='Index of the monitor for displaying the plaque')
+    parser.add_argument("--POPPLER_PATH", help='Path to Poppler bin folder, required for using PyMuPDF on Windows')
+    parser.add_argument("--FADE_IMAGES", help='Whether to fade images in & out while swapping')
+
+    args = parser.parse_args()
+    read_args(args)
+
     # make temp folder for downloading files to
     if not os.path.exists('temp'):
         os.mkdir('temp')
@@ -329,16 +379,16 @@ if __name__ == '__main__':
 
     # download the photo
     pil_img_photo = dropbox_get_file(image_json['photo'], 'temp/test.jpg')
-    # fill label template PDF with info from the subject's JSON, and download it as an image
-    pil_img_label = get_filled_pdf_as_image(pil_img_photo, subject_json, image_json)
+    # fill plaque template PDF with info from the subject's JSON, and download it as an image
+    pil_img_plaque = get_filled_pdf_as_image(pil_img_photo, subject_json, image_json)
 
-    # create Tkinter windows to display the image & the label
+    # create Tkinter windows to display the image & the plaque
     win1 = tkinter.Toplevel(root)
     win2 = tkinter.Toplevel(root)
 
     # open the images
     canvas_photo, canvas_img_photo = open_image_fullscreen(win1, pil_img_photo, PHOTO_MONITOR_INDEX)
-    canvas_label, canvas_img_label = open_image_fullscreen(win2, pil_img_label, LABEL_MONITOR_INDEX)
+    canvas_plaque, canvas_img_plaque = open_image_fullscreen(win2, pil_img_plaque, PLAQUE_MONITOR_INDEX)
 
     # periodically refresh the images
     while True:
