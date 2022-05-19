@@ -23,6 +23,9 @@ DROPBOX_REFRESH_TOKEN = os.environ['PIGALLERY_REFRESH_TOKEN']
 SUBJECT_BUFFER_LENGTH = 0
 PHOTO_BUFFER_LENGTH = 30
 
+# max number of retries to get files from dropbox
+MAX_RETRIES = 10
+
 FADE_IMAGES = False
 
 PLAQUE_MONITOR_INDEX = 0
@@ -133,67 +136,93 @@ def dropbox_get_file(dropbox_path, local_path):
         dbx.files_download_to_file(path=dropbox_path, download_path=local_path)
         return Image.open(local_path)
     except Exception as e:
-        print('Error getting list of files from Dropbox: ' + str(e))
+        print('Error getting file from Dropbox: ' + str(e))
 
 
 def dropbox_get_random_json():
-    dbx = dropbox_connect()
+    global MAX_RETRIES
+    num_retries = 0
 
-    # emulated do-while loop to keep trying to select an image until we get one that isnt a repeat of the last N, defined by SUBJECT_BUFFER_LENGTH and PHOTO_BUFFER_LENGTH
-    global photo_buffer, subject_buffer
     while True:
-        num_files = dropbox_get_num_jsons()
-        file_index = random.randint(1, num_files)
-        print(f'index: {file_index}')
-        index = 1
-        file = None
-        for i in dbx.files_list_folder("/jsons").entries:
-            if index == file_index:
-                file = i
+        try:
+            dbx = dropbox_connect()
+
+            # emulated do-while loop to keep trying to select an image until we get one that isnt a repeat of the last N, defined by SUBJECT_BUFFER_LENGTH and PHOTO_BUFFER_LENGTH
+            global photo_buffer, subject_buffer
+            while True:
+                num_files = dropbox_get_num_jsons()
+                file_index = random.randint(1, num_files)
+                print(f'index: {file_index}')
+                index = 1
+                file = None
+                for i in dbx.files_list_folder("/jsons").entries:
+                    if index == file_index:
+                        file = i
+                        break
+                    index += 1
+
+                print(f'file: {file.name}')
+
+                file_path = f'/jsons/{file.name}'
+                dbx.files_download_to_file(path=file_path, download_path='temp/subject.json')
+                json_obj = json.load(open('temp/subject.json'))
+
+                # if using subject buffer, only select this file if it's not one of the last N we've used
+                if SUBJECT_BUFFER_LENGTH > 0 and file.name in subject_buffer:
+                    print('Repeat skipped\n')
+                    continue
+
+                # if using photo buffer, only select this file if it contains at least one image that's not one of the last N we've used
+                if PHOTO_BUFFER_LENGTH > 0:
+                    has_valid_image = False
+                    for img in json_obj["images"]:
+                        if img["photo"] not in photo_buffer:
+                            has_valid_image = True
+                            break
+
+                    if not has_valid_image:
+                        print('No non-repeat images found\n')
+                        continue
+
+                if SUBJECT_BUFFER_LENGTH > 0:
+                    # add this file to the list of the last N we've used
+                    if len(subject_buffer) == SUBJECT_BUFFER_LENGTH:
+                        subject_buffer.pop(SUBJECT_BUFFER_LENGTH - 1)
+                    subject_buffer.insert(0, file.name)
+
                 break
-            index += 1
 
-        print(f'file: {file.name}')
+            return json_obj
+        except Exception as e:
+            print("Error getting random json. Retrying...")
 
-        file_path = f'/jsons/{file.name}'
-        dbx.files_download_to_file(path=file_path, download_path='temp/subject.json')
-        json_obj = json.load(open('temp/subject.json'))
-
-        # if using subject buffer, only select this file if it's not one of the last N we've used
-        if SUBJECT_BUFFER_LENGTH > 0 and file.name in subject_buffer:
-            print('Repeat skipped\n')
-            continue
-
-        # if using photo buffer, only select this file if it contains at least one image that's not one of the last N we've used
-        if PHOTO_BUFFER_LENGTH > 0:
-            has_valid_image = False
-            for img in json_obj["images"]:
-                if img["photo"] not in photo_buffer:
-                    has_valid_image = True
-                    break
-
-            if not has_valid_image:
-                print('No non-repeat images found\n')
-                continue
-
-        if SUBJECT_BUFFER_LENGTH > 0:
-            # add this file to the list of the last N we've used
-            if len(subject_buffer) == SUBJECT_BUFFER_LENGTH:
-                subject_buffer.pop(SUBJECT_BUFFER_LENGTH - 1)
-            subject_buffer.insert(0, file.name)
-
-        break
-
-    return json_obj
+            num_retries += 1
+            if num_retries >= MAX_RETRIES:
+                print("Ran out of retries. Exiting")
+                root.destroy()
+                exit(1)
 
 
 def dropbox_get_num_jsons():
-    dbx = dropbox_connect()
+    global MAX_RETRIES
+    num_retries = 0
 
-    count = 0;
-    for i in dbx.files_list_folder("/jsons").entries:
-        count += 1
-    return count
+    while True:
+        try:
+            dbx = dropbox_connect()
+
+            count = 0;
+            for i in dbx.files_list_folder("/jsons").entries:
+                count += 1
+            return count
+        except Exception as e:
+            print("Error getting json count. Retrying...")
+
+            num_retries += 1
+            if num_retries >= MAX_RETRIES:
+                print("Ran out of retries. Exiting")
+                root.destroy()
+                exit(1)
 
 
 def get_pdf_fields(image, subject_json, image_json):
@@ -328,7 +357,7 @@ def fade_images(fade_direction):
 
 
 def read_args(args):
-    global SUBJECT_BUFFER_LENGTH, PHOTO_BUFFER_LENGTH, IMAGE_SWAP_RATE_MS, PHOTO_MONITOR_INDEX, PLAQUE_MONITOR_INDEX, POPPLER_PATH, FADE_IMAGES
+    global SUBJECT_BUFFER_LENGTH, PHOTO_BUFFER_LENGTH, IMAGE_SWAP_RATE_MS, PHOTO_MONITOR_INDEX, PLAQUE_MONITOR_INDEX, POPPLER_PATH, FADE_IMAGES, MAX_RETRIES
 
     if args.SUBJECT_BUFFER_LENGTH is not None:
         SUBJECT_BUFFER_LENGTH = int(args.SUBJECT_BUFFER_LENGTH)
@@ -351,6 +380,9 @@ def read_args(args):
     if args.FADE_IMAGES is not None:
         FADE_IMAGES = bool(args.FADE_IMAGES)
 
+    if args.MAX_RETRIES is not None:
+        MAX_RETRIES = int(args.MAX_RETRIES)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -361,6 +393,7 @@ if __name__ == '__main__':
     parser.add_argument("--PLAQUE_MONITOR_INDEX", help='Index of the monitor for displaying the plaque')
     parser.add_argument("--POPPLER_PATH", help='Path to Poppler bin folder, required for using PyMuPDF on Windows')
     parser.add_argument("--FADE_IMAGES", help='Whether to fade images in & out while swapping')
+    parser.add_argument("--MAX_RETRIES", help='Max amount of attempts to get a file from Dropbox app')
 
     args = parser.parse_args()
     read_args(args)
