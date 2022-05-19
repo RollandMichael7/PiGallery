@@ -203,6 +203,7 @@ def dropbox_get_random_json():
             if num_retries >= MAX_RETRIES:
                 print("Ran out of retries. Exiting")
                 exit_program()
+            time.sleep(2)
 
 
 def dropbox_get_num_jsons():
@@ -224,6 +225,7 @@ def dropbox_get_num_jsons():
             if num_retries >= MAX_RETRIES:
                 print("Ran out of retries. Exiting")
                 exit_program()
+            time.sleep(2)
 
 
 def get_pdf_fields(image, subject_json, image_json):
