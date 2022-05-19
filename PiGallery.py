@@ -37,8 +37,11 @@ IMAGE_SWAP_RATE_MS = (10 * 1000)
 # poppler path for using PyMuPDF on Windows
 POPPLER_PATH = None
 
+# track how often each subject & image is chosen
+subject_image_frequencies = {}
+
 root = tkinter.Tk()
-root.bind("<Escape>", lambda e: root.destroy())
+root.bind("<Escape>", lambda e: exit_program())
 root.bind("<Right>", lambda e: force_refresh())
 root.withdraw()
 
@@ -71,7 +74,7 @@ def open_image_fullscreen(window, pil_image, monitor_index):
     window.overrideredirect(1)
     window.geometry("%dx%d+%d+%d" % (w, h, x, y))
     window.focus_set()    
-    window.bind("<Escape>", lambda e: root.destroy())  # (e.widget.withdraw(), e.widget.quit()))
+    window.bind("<Escape>", lambda e: exit_program())
     window.bind("<Right>", lambda e: force_refresh())
     canvas = tkinter.Canvas(window, width=w, height=h)
     canvas.pack()
@@ -199,8 +202,7 @@ def dropbox_get_random_json():
             num_retries += 1
             if num_retries >= MAX_RETRIES:
                 print("Ran out of retries. Exiting")
-                root.destroy()
-                exit(1)
+                exit_program()
 
 
 def dropbox_get_num_jsons():
@@ -221,8 +223,7 @@ def dropbox_get_num_jsons():
             num_retries += 1
             if num_retries >= MAX_RETRIES:
                 print("Ran out of retries. Exiting")
-                root.destroy()
-                exit(1)
+                exit_program()
 
 
 def get_pdf_fields(image, subject_json, image_json):
@@ -315,6 +316,7 @@ def swap_images():
                 else:
                     break
 
+            log_image(subject_json, image_json)
             print(f'subject: {subject_json["name"]}')
 
             # download the photo
@@ -354,6 +356,49 @@ def fade_images(fade_direction):
         canvas_plaque.update()
         # Sleep some time to make the transition not immediate
         time.sleep(0.01)
+
+
+def log_image(subject_json, image_json):
+    global subject_image_frequencies
+    subject = subject_json["name"]
+    image = image_json["photo"] 
+    
+    if subject in subject_image_frequencies and image in subject_image_frequencies[subject]:
+        curr = subject_image_frequencies[subject][image]
+        subject_image_frequencies[subject][image] = curr + 1
+    elif subject in subject_image_frequencies:
+        subject_image_frequencies[subject][image] = 1
+    else:
+        subject_image_frequencies[subject] = {}
+        subject_image_frequencies[subject][image] = 1
+
+
+
+def exit_program():
+    # log frequency of selected images before we exit
+    print("\nImage frequencies\n")
+
+    global subject_image_frequencies
+    
+    subject_frequencies = []
+    for subject in subject_image_frequencies.keys():
+        print(f'Subject: {subject}')
+
+        subject_frequency = 0
+        for image in subject_image_frequencies[subject].keys():
+            image_frequency = subject_image_frequencies[subject][image]
+            subject_frequency += image_frequency
+            print(f'{image}: {image_frequency}')
+        print(f'Total: {subject_frequency}\n')
+        subject_frequencies.append({"subject": subject, "count": subject_frequency})
+
+    print(f'Totals\n')
+    for s in sorted(subject_frequencies, key=lambda x: x["count"], reverse=True):
+        print(f'{s["subject"]}: {s["count"]}')
+
+    global root
+    root.destroy()
+    exit(0)
 
 
 def read_args(args):
@@ -406,6 +451,8 @@ if __name__ == '__main__':
     subject_json = dropbox_get_random_json()
     # choose random photo for the subject
     image_json = random.choice(subject_json["images"])
+
+    log_image(subject_json, image_json)
 
     # store image name in buffer so it isnt repeated
     if PHOTO_BUFFER_LENGTH > 0:
