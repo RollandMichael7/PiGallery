@@ -112,6 +112,7 @@ def dropbox_connect():
         return dropbox.Dropbox(oauth2_refresh_token=DROPBOX_REFRESH_TOKEN, app_key=DROPBOX_APP_KEY)
     except AuthError as e:
         print('Error connecting to Dropbox with access token: ' + str(e))
+        exit_program()
 
 
 def dropbox_get_refresh_token():
@@ -133,13 +134,22 @@ def dropbox_get_refresh_token():
 
 
 def dropbox_get_file(dropbox_path, local_path):
-    dbx = dropbox_connect()
+    global MAX_RETRIES
+    num_retries = 0
 
-    try:
-        dbx.files_download_to_file(path=dropbox_path, download_path=local_path)
-        return Image.open(local_path)
-    except Exception as e:
-        print('Error getting file from Dropbox: ' + str(e))
+    while True:
+        try:
+            dbx = dropbox_connect()
+            dbx.files_download_to_file(path=dropbox_path, download_path=local_path)
+            return Image.open(local_path)
+        except Exception as e:
+            print("Error getting file from Dropbox. Retrying...")
+
+            num_retries += 1
+            if num_retries >= MAX_RETRIES:
+                print("Ran out of retries. Exiting")
+                exit_program()
+            time.sleep(2)
 
 
 def dropbox_get_random_json():
@@ -305,7 +315,6 @@ def swap_images():
             # emulated do-while loop to choose random photo for the subject that isn't one of the last N we've already used
             while True:
                 image_json = random.choice(subject_json["images"])
-                print(f'image: {image_json["photo"]}\n')
                 if PHOTO_BUFFER_LENGTH > 0:
                     if image_json["photo"] not in photo_buffer:
                         # add this file to the list of the last N we've used
@@ -320,6 +329,7 @@ def swap_images():
 
             log_image(subject_json, image_json)
             print(f'subject: {subject_json["name"]}')
+            print(f'image: {image_json["photo"]}\n')
 
             # download the photo
             pil_img_photo = dropbox_get_file(image_json["photo"], 'temp/test.jpg')
