@@ -404,17 +404,19 @@ def exit_program():
             print(f'Subject: {subject}')
 
             subject_frequency = 0
+            image_count = 0
             for image in subject_image_frequencies[subject].keys():
                 image_frequency = subject_image_frequencies[subject][image]
                 subject_frequency += image_frequency
+                image_count += 1
                 total_images += image_frequency
                 print(f'{image}: {image_frequency}')
             print(f'Total: {subject_frequency}\n')
-            subject_frequencies.append({"subject": subject, "count": subject_frequency})
+            subject_frequencies.append({"subject": subject, "count": subject_frequency, "image_count": image_count})
 
         print(f'Totals\n')
         for s in sorted(subject_frequencies, key=lambda x: x["count"], reverse=True):
-            print(f'{s["subject"]}: {s["count"]}')
+            print(f'{s["subject"]}: {s["count"]} [{s["image_count"]} images]')
         print(f'Total: {total_images}')
 
         global root
