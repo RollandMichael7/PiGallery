@@ -48,6 +48,8 @@ root.withdraw()
 swap_counter = 0
 swap_pause = False
 
+printed_logs = False
+
 canvas_photo = None
 canvas_plaque = None
 canvas_img_photo = None
@@ -387,30 +389,37 @@ def log_image(subject_json, image_json):
 
 
 def exit_program():
-    # log frequency of selected images before we exit
-    print("\nImage frequencies\n")
+    global printed_logs
 
-    global subject_image_frequencies
-    
-    subject_frequencies = []
-    for subject in subject_image_frequencies.keys():
-        print(f'Subject: {subject}')
+    if not printed_logs:
+        # log frequency of selected images before we exit
+        printed_logs = True
+        print("\nImage frequencies\n")
 
-        subject_frequency = 0
-        for image in subject_image_frequencies[subject].keys():
-            image_frequency = subject_image_frequencies[subject][image]
-            subject_frequency += image_frequency
-            print(f'{image}: {image_frequency}')
-        print(f'Total: {subject_frequency}\n')
-        subject_frequencies.append({"subject": subject, "count": subject_frequency})
+        global subject_image_frequencies
+        
+        subject_frequencies = []
+        total_images = 0
+        for subject in subject_image_frequencies.keys():
+            print(f'Subject: {subject}')
 
-    print(f'Totals\n')
-    for s in sorted(subject_frequencies, key=lambda x: x["count"], reverse=True):
-        print(f'{s["subject"]}: {s["count"]}')
+            subject_frequency = 0
+            for image in subject_image_frequencies[subject].keys():
+                image_frequency = subject_image_frequencies[subject][image]
+                subject_frequency += image_frequency
+                total_images += image_frequency
+                print(f'{image}: {image_frequency}')
+            print(f'Total: {subject_frequency}\n')
+            subject_frequencies.append({"subject": subject, "count": subject_frequency})
 
-    global root
-    root.destroy()
-    exit(0)
+        print(f'Totals\n')
+        for s in sorted(subject_frequencies, key=lambda x: x["count"], reverse=True):
+            print(f'{s["subject"]}: {s["count"]}')
+        print(f'Total: {total_images}')
+
+        global root
+        root.destroy()
+        exit(0)
 
 
 def read_args(args):
@@ -442,56 +451,59 @@ def read_args(args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--SUBJECT_BUFFER_LENGTH", help='Number of last photo subjects to not repeat')
-    parser.add_argument("--PHOTO_BUFFER_LENGTH", help='Number of last photos to not repeat')
-    parser.add_argument("--IMAGE_SWAP_RATE_MS", help='Frequency of image swaps, in ms')
-    parser.add_argument("--PHOTO_MONITOR_INDEX", help='Index of the monitor for displaying the photo')
-    parser.add_argument("--PLAQUE_MONITOR_INDEX", help='Index of the monitor for displaying the plaque')
-    parser.add_argument("--POPPLER_PATH", help='Path to Poppler bin folder, required for using PyMuPDF on Windows')
-    parser.add_argument("--FADE_IMAGES", help='Whether to fade images in & out while swapping')
-    parser.add_argument("--MAX_RETRIES", help='Max amount of attempts to get a file from Dropbox app')
+    try:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--SUBJECT_BUFFER_LENGTH", help='Number of last photo subjects to not repeat')
+        parser.add_argument("--PHOTO_BUFFER_LENGTH", help='Number of last photos to not repeat')
+        parser.add_argument("--IMAGE_SWAP_RATE_MS", help='Frequency of image swaps, in ms')
+        parser.add_argument("--PHOTO_MONITOR_INDEX", help='Index of the monitor for displaying the photo')
+        parser.add_argument("--PLAQUE_MONITOR_INDEX", help='Index of the monitor for displaying the plaque')
+        parser.add_argument("--POPPLER_PATH", help='Path to Poppler bin folder, required for using PyMuPDF on Windows')
+        parser.add_argument("--FADE_IMAGES", help='Whether to fade images in & out while swapping')
+        parser.add_argument("--MAX_RETRIES", help='Max amount of attempts to get a file from Dropbox app')
 
-    args = parser.parse_args()
-    read_args(args)
+        args = parser.parse_args()
+        read_args(args)
 
-    # make temp folder for downloading files to
-    if not os.path.exists('temp'):
-        os.mkdir('temp')
+        # make temp folder for downloading files to
+        if not os.path.exists('temp'):
+            os.mkdir('temp')
 
-    # get random subject JSON
-    subject_json = dropbox_get_random_json()
-    # choose random photo for the subject
-    image_json = random.choice(subject_json["images"])
+        # get random subject JSON
+        subject_json = dropbox_get_random_json()
+        # choose random photo for the subject
+        image_json = random.choice(subject_json["images"])
 
-    log_image(subject_json, image_json)
+        log_image(subject_json, image_json)
 
-    # store image name in buffer so it isnt repeated
-    if PHOTO_BUFFER_LENGTH > 0:
-        photo_buffer.insert(0, image_json["photo"])
+        # store image name in buffer so it isnt repeated
+        if PHOTO_BUFFER_LENGTH > 0:
+            photo_buffer.insert(0, image_json["photo"])
 
-    print(f'subject: {subject_json["name"]}')
-    print(f'image: {image_json["photo"]}\n')
+        print(f'subject: {subject_json["name"]}')
+        print(f'image: {image_json["photo"]}\n')
 
-    # download the photo
-    pil_img_photo = dropbox_get_file(image_json['photo'], 'temp/test.jpg')
-    # fill plaque template PDF with info from the subject's JSON, and download it as an image
-    pil_img_plaque = get_filled_pdf_as_image(pil_img_photo, subject_json, image_json)
+        # download the photo
+        pil_img_photo = dropbox_get_file(image_json['photo'], 'temp/test.jpg')
+        # fill plaque template PDF with info from the subject's JSON, and download it as an image
+        pil_img_plaque = get_filled_pdf_as_image(pil_img_photo, subject_json, image_json)
 
-    # create Tkinter windows to display the image & the plaque
-    win1 = tkinter.Toplevel(root)
-    win2 = tkinter.Toplevel(root)
+        # create Tkinter windows to display the image & the plaque
+        win1 = tkinter.Toplevel(root)
+        win2 = tkinter.Toplevel(root)
 
-    # open the images
-    canvas_photo, canvas_img_photo = open_image_fullscreen(win1, pil_img_photo, PHOTO_MONITOR_INDEX)
-    canvas_plaque, canvas_img_plaque = open_image_fullscreen(win2, pil_img_plaque, PLAQUE_MONITOR_INDEX)
+        # open the images
+        canvas_photo, canvas_img_photo = open_image_fullscreen(win1, pil_img_photo, PHOTO_MONITOR_INDEX)
+        canvas_plaque, canvas_img_plaque = open_image_fullscreen(win2, pil_img_plaque, PLAQUE_MONITOR_INDEX)
 
-    # periodically refresh the images
-    while True:
-        if not swap_pause:
-            root.update()
-            root.after(REFRESH_RATE_MS, swap_images())
-        time.sleep(.5)
+        # periodically refresh the images
+        while True:
+            if not swap_pause:
+                root.update()
+                root.after(REFRESH_RATE_MS, swap_images())
+            time.sleep(.5)
 
-    # run Tkinter
-    root.mainloop()
+        # run Tkinter
+        root.mainloop()
+    except Exception as e:
+        exit_program()
