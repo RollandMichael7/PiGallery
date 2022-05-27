@@ -276,20 +276,33 @@ def get_pdf_fields(image, subject_json, image_json):
 
 
 def get_filled_pdf_as_image(image, subject_json, image_json):
-    global POPPLER_PATH
-    dbx = dropbox_connect()
-    dbx.files_download_to_file(path=image_json['plaque_template'], download_path='temp/template.pdf')
+    global MAX_RETRIES
+    num_retries = 0
 
-    filled_fields = get_pdf_fields(image, subject_json, image_json)
-    fillpdfs.write_fillable_pdf('temp/template.pdf', 'temp/plaque.pdf', filled_fields)
+    while True:
+        try:
+            global POPPLER_PATH
+            dbx = dropbox_connect()
+            dbx.files_download_to_file(path=image_json['plaque_template'], download_path='temp/template.pdf')
 
-    if POPPLER_PATH is not None:
-        pdf_as_img = convert_from_path('temp/plaque.pdf', use_cropbox=True, poppler_path=POPPLER_PATH)
-    else:
-        pdf_as_img = convert_from_path('temp/plaque.pdf', use_cropbox=True)
-    
-    pdf_as_img[0].save('temp/plaque.jpg', 'JPEG')
-    return Image.open('temp/plaque.jpg')
+            filled_fields = get_pdf_fields(image, subject_json, image_json)
+            fillpdfs.write_fillable_pdf('temp/template.pdf', 'temp/plaque.pdf', filled_fields)
+
+            if POPPLER_PATH is not None:
+                pdf_as_img = convert_from_path('temp/plaque.pdf', use_cropbox=True, poppler_path=POPPLER_PATH)
+            else:
+                pdf_as_img = convert_from_path('temp/plaque.pdf', use_cropbox=True)
+            
+            pdf_as_img[0].save('temp/plaque.jpg', 'JPEG')
+            return Image.open('temp/plaque.jpg')
+        except Exception as e:
+            print("Error getting plaque PDF. Retrying...")
+
+            num_retries += 1
+            if num_retries >= MAX_RETRIES:
+                print("Ran out of retries. Exiting")
+                exit_program()
+            time.sleep(2)
 
 
 def force_refresh():
