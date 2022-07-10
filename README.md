@@ -25,14 +25,14 @@ The dropbox app's folder structure could look like this:
     - image1.jpeg
     - image2.jpeg
     - image3.png
-  - jsons
-    - subject1.json
-    - subject2.json
-    - subject3.json
   - templates
     - template1.pdf
     - template2.pdf
     - template3.pdf
+  - jsons
+    - subject1.json
+    - subject2.json
+    - subject3.json
 ```
 The only structure requirement is that there must be a ```jsons``` folder that JSONs will be randomly selected from.
 
@@ -57,7 +57,9 @@ The plaque templates must be PDFs with the following fillable text fields:
 - ```Exposure```
 
 An example PDF is provided in this repository at ```templates/template-exif.pdf```
+
 ## The JSONs
+
 The JSONs must have the following structure:
 ```
 {
@@ -84,7 +86,7 @@ Explanation of the fields:
 - ```name```, ```species``` and ```location```: used to fill the PDF fields ```Title```, ```Subtitle``` and ```Location``` respectively
 - ```name_detail```: If non-empty, then the PDF field ```Title``` is filled in as ```[name] ([name_detail])```. For example ```Cardinal (m.)```
 - ```plaque_template```: The path, relative to the dropbox app's base directory, to the PDF template that will be filled & displayed on the plaque monitor
-- ```photo```: The path, releative the dropbox app's base directory, to the image that will be displayed on the photo monitor
+- ```photo```: The path, relative the dropbox app's base directory, to the image that will be displayed on the photo monitor
 
 On each iteration of the gallery, a random JSON is chosen. From that JSON, one object from its ```images``` array is chosen to display.
 
