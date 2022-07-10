@@ -86,11 +86,11 @@ Explanation of the fields:
 - ```plaque_template```: The path, relative to the dropbox app's base directory, to the PDF template that will be filled & displayed on the plaque monitor
 - ```photo```: The path, releative the dropbox app's base directory, to the image that will be displayed on the photo monitor
 
-On each iteration of the gallery, a random JSON is chosen. From that JSON, 1 object from its ```images``` array is chosen to display.
+On each iteration of the gallery, a random JSON is chosen. From that JSON, one object from its ```images``` array is chosen to display.
 
 ## Environment Variables
 
-The following environment variables **must be set** for the script to work
+The following environment variables **must be set** for the script to work:
 
 - ```PIGALLERY_APP_KEY```: The key for your Dropbox app.
 - ```PIGALLERY_REFRESH_TOKEN```: The refresh token for accessing your Dropbox app. The function ```dropbox_get_refresh_token``` in the script can be used to get a refresh token if ```PIGALLERY_APP_KEY``` is set.
@@ -110,5 +110,5 @@ The following environment variables **must be set** for the script to work
 | PHOTO_MONITOR_INDEX   | Index of the monitor that will display the photo.  | ```0``` |
 | PLAQUE_MONITOR_INDEX  | Index of the monitor that will display the plaque. | ```1``` |
 | FADE_IMAGES           | Boolean for determining whether to fade out & in between images. Does not work very well. | ```False``` |
-| MAX_RETRIES           | Max amount of attempts for attempting to get a file from the Dropbox app | ```10``` |
+| MAX_RETRIES           | Max amount of attempts for getting a file from the Dropbox app. | ```10``` |
 | POPPLER_PATH          | **Required only for Windows.** Path to the Poppler binary folder, used by PyMuPDF to fill the plaque PDF. | ```../../poppler-22.01.0/Library/bin``` |
