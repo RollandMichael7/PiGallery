@@ -9,7 +9,7 @@ Photos, PDF templates for the plaque, and JSONs with data for the plaque are pul
 
 # Requirements (for my setup)
 - A Raspberry Pi 4B, running 64 bit Raspbian OS
-  - I was unable to get PyMuPDF working with 32 bit Raspbian!
+  - **Warning: I was unable to get PyMuPDF working on 32 bit Raspbian!**
 - 2x monitors, preferably a smaller one for the "plaque" and a larger one for the photo
   - I recommend the [ROADOM Raspberry Pi Touchscreen Monitor 7"](https://www.amazon.com/dp/B07VNX4ZWY) for the plaque
   - I also recommend the [Rii 2.4G Mini Wireless Keyboard with Touchpad](https://www.amazon.com/dp/B00I5SW8MC) for KB+M on the Pi
@@ -100,7 +100,17 @@ The following environment variables **must be set** for the script to work:
 # Installation
 
 - ```pip install -r requirements.txt```
+
+# Usage
+
 - ```python PiGallery.py```
+
+When the script is run, fullscreen Tkinter windows will open on both the plaque & photo monitors.
+
+To exit the script, focus one of the Tkinter windows (I do this by hitting the Windows key and then clicking into the window) and hit the escape key. When the script exits, it will print metrics on how many photos were chosen, broken down by both subject & individual image.
+
+![image](https://user-images.githubusercontent.com/14168201/179371194-e36b2646-07dc-46e1-a204-5ef1776c4533.png)
+
 
 ## CLI Arguments
 
@@ -114,3 +124,7 @@ The following environment variables **must be set** for the script to work:
 | FADE_IMAGES           | Boolean for determining whether to fade out & in between images. Does not work very well. | ```False``` |
 | MAX_RETRIES           | Max amount of attempts for getting a file from the Dropbox app. | ```10``` |
 | POPPLER_PATH          | **Required only for Windows.** Path to the Poppler binary folder, used by PyMuPDF to fill the plaque PDF. | ```../../poppler-22.01.0/Library/bin``` |
+
+Example: 
+
+```py PiGallery.py --IMAGE_SWAP_RATE_MS=60000 --PHOTO_BUFFER_LENGTH=50 --POPPLER_PATH=../../poppler-22.01.0/Library/bin --PLAQUE_MONITOR_INDEX=1 --PHOTO_MONITOR_INDEX=0```
