@@ -16,6 +16,7 @@ Photos, PDF templates for the plaque, and JSONs with data for the plaque are pul
 - Python 3
 - A [dropbox app](https://www.dropbox.com/developers/apps)
 - If running on Windows, [poppler](https://poppler.freedesktop.org/) is also required
+  - [Releases for Windows](https://github.com/oschwartz10612/poppler-windows/releases)
 
 # Setup
 
